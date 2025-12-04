@@ -10,16 +10,21 @@ import time
 # Parámetros generales de la cámara (WEBCAM)
 # ------------------------------
 
-CAMERA_INDEX = 0        # Cámara que usaremos No cambiar este parametro
-FRAME_WIDTH = 640       # Ancho de la imagen procesada
-FRAME_HEIGHT = 480      # Alto de la imagen procesada
+CAMERA_INDEX = 0          # Cámara que usaremos (0 = webcam principal)
+FRAME_WIDTH = 1280        # Ancho de la imagen procesada
+FRAME_HEIGHT = 720        # Alto de la imagen procesada
 
+# -----------------------------
+# CONFIGURACIÓN GLOBAL DEL SISTEMA
+# -----------------------------
+CANNY_LOW = 50
+CANNY_HIGH = 150
 # ------------------------------
 # Región de interés (ROI)
 # ------------------------------
 
-ROI_X1, ROI_Y1 = 160, 120   # Esquina superior izquierda de la ROI
-ROI_X2, ROI_Y2 = 480, 360   # Esquina inferior derecha de la ROI
+ROI_X1, ROI_Y1 = 320, 180      # Esquina superior izquierda de la ROI
+ROI_X2, ROI_Y2 = 960, 540   # Esquina inferior derecha de la ROI
 
 # ------------------------------
 # Parámetros de Canny (detección de bordes)
@@ -58,7 +63,7 @@ def liberar_camara(cap):
     Libera la cámara y cierra cualquier ventana de OpenCV.
     No cierra nada si aún no se abrieron ventanas.
     """
-    cap.release() 
+    cap.release()
     cv2.destroyAllWindows()
     # =====================================================
 # BLOQUE 3 - OBTENER FRAME Y RECORTAR ROI
@@ -120,47 +125,67 @@ def preprocesar_roi(roi):
 
     return gray, gray_blur, hsv
 # =====================================================
-# MAIN PROVISIONAL DE PRUEBA
+# BLOQUE 5 - DETECCIÓN DE BORDES CON CANNY
+# =====================================================
+
+def detectar_bordes_canny(gray_blur):
+    """
+    Aplica el detector de bordes Canny a la imagen en escala de grises suavizada.
+
+    Parámetros:
+        gray_blur: imagen en escala de grises ya suavizada con GaussianBlur.
+
+    Usa los umbrales globales:
+        CANNY_LOW  - umbral inferior
+        CANNY_HIGH - umbral superior
+
+    Devuelve:
+        edges: imagen binaria (uint8) del mismo tamaño que gray_blur,
+               donde 255 indica píxel perteneciente a un borde y 0 indica no-borde.
+    """
+    edges = cv2.Canny(gray_blur, CANNY_LOW, CANNY_HIGH)
+    return edges
+# =====================================================
+# MAIN DE PRUEBA 2 - VISUALIZACIÓN CON CANNY
 # =====================================================
 
 if __name__ == "__main__":
-    print("Iniciando prueba de visión RACIB (Bloques 1–4, webcam)...")
+    print("Iniciando prueba de visión RACIB (HD + Canny)...")
 
-    # 1) Inicializar cámara
     cap = inicializar_camara()
 
     try:
         while True:
-            # 2) Obtener frame completo
+            # 1) Frame completo
             frame = obtener_frame(cap)
 
-            # 3) Dibujar la ROI sobre una copia del frame para visualización
+            # 2) Copia para dibujar la ROI
             frame_viz = frame.copy()
             cv2.rectangle(
                 frame_viz,
                 (ROI_X1, ROI_Y1),
                 (ROI_X2, ROI_Y2),
-                (0, 255, 0),  # color verde del rectángulo
-                2             # grosor de línea
+                (0, 255, 0),  # verde
+                2
             )
 
-            # 4) Recortar ROI
+            # 3) Recortar ROI
             roi = recortar_roi(frame)
 
-            # 5) Preprocesar ROI (gris, gris suavizada, HSV)
+            # 4) Preprocesar ROI
             gray, gray_blur, hsv = preprocesar_roi(roi)
 
-            # 6) Para visualizar algo del HSV, mostramos solo el canal V (brillo)
-            v_channel = hsv[:, :, 2]
+            # 5) Bordes con Canny
+            edges = detectar_bordes_canny(gray_blur)
 
-            # 7) Mostrar ventanas
+            # 6) Mostrar ventanas
             cv2.imshow("RACIB - Frame completo (ROI marcada)", frame_viz)
             cv2.imshow("RACIB - ROI (color BGR)", roi)
             cv2.imshow("RACIB - ROI gris", gray)
             cv2.imshow("RACIB - ROI gris suavizada", gray_blur)
-            cv2.imshow("RACIB - ROI canal V (HSV - brillo)", v_channel)
+            cv2.imshow("RACIB - ROI bordes Canny", edges)
 
-            # 8) Salir con la tecla 'q'
+            # 7) Salir con 'q'
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 print("Tecla 'q' presionada. Saliendo...")
